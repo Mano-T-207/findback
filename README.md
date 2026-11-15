@@ -4,7 +4,7 @@
 
 FindBack is a browser-based web app where college students report lost or found items, search listings, and see suggested matches. It is an academic prototype built for the Innovation Project (TRL 1–3).
 
-**Live demo:** [[add your GitHub Pages link here](https://mano-t-207.github.io/findback/)]
+**Live demo:** [](https://mano-t-207.github.io/findback/)]
 **Author:** [Mano T] | [CSE] | [KPRIET]
 
 ## Problem
