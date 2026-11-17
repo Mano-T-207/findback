@@ -47,7 +47,10 @@ script.js    – logic (storage, validation, search, matching)
 ```
 
 ## Screenshots
-Add screenshots of the Home, Browse, Details and Report pages here.
+![Home](home.png)
+![Browse](browse.png)
+![Details](details.png)
+![Report](report.png)
 
 ## TRL status
 | Level | Status |
