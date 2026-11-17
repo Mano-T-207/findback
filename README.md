@@ -50,7 +50,7 @@ script.js    – logic (storage, validation, search, matching)
 ![Home](home.png)
 ![Browse](browse.png)
 ![Details](details.png)
-![Report](report.png)
+![Report](report.png) 
 
 ## TRL status
 | Level | Status |
