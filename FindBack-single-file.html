@@ -344,14 +344,14 @@ function openDetails(id) {
   <dt>Location</dt><dd>${esc(i.location)}</dd><dt>Description</dt><dd>${esc(i.description || 'No description added')}</dd>
   <dt>Contact</dt><dd>${i.showContact ? esc(i.contact) : '🔒 Hidden by the reporter. Send a request below.'}</dd></dl>
   ${(i.claimList || []).length ? `<div class="box"><h4>Requests received</h4>${i.claimList.map(c => `<p class="muted"><b>${esc(c.name)}</b>: ${esc(c.msg)}</p>`).join('')}</div>` : ''}
-  <div class="box"><h4>Possible matches</h4><p class="muted">Automatic suggestions from similar reports. Nothing to save here. Open one to check it.</p>
+  <div class="box"><h4>Similar reports (automatic)</h4><p class="muted">Automatic suggestions from similar reports. Nothing to save here. Open one to check it.</p>
   ${ms.length ? ms.map(m => `<div class="pair"><span>${esc(m.item.name)} (${m.item.type})<br><span class="strength">${strength(m.s)} • ${m.s}%</span></span><button class="btn ghost small" data-open="${m.item.id}">View</button></div>`).join('') : '<p class="muted">No similar reports yet.</p>'}</div>
-  <div class="box"><h4>Mark progress</h4><p class="muted">Change this when something happens: Possible Match (you think the item was found) or Returned (the owner got it back). Then press Save status.</p><div class="row"><select id="statusSel">${['Lost', 'Found', 'Possible Match', 'Returned'].map(s => `<option ${s === i.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
-  <button class="btn primary small" data-act="status">Save status</button></div></div>
-  <form id="claimForm" class="box"><h4>${i.type === 'Found' ? 'Claim this item' : 'Send a message to the owner'}</h4><p class="muted">Prototype: requests are saved in this browser only.</p>
+  ${i.own ? `<div class="box"><h4>Mark progress (only you can see this)</h4><p class="muted">Pick Possible match if you think it was found, or Returned when the item is back with its owner. Then press Save status.</p><div class="row"><select id="statusSel">${[[i.type, i.type === 'Lost' ? 'Still missing' : 'Not claimed yet'], ['Possible Match', 'Possible match'], ['Returned', 'Returned to owner']].map(([v, l]) => `<option value="${v}" ${v === i.status ? 'selected' : ''}>${l}</option>`).join('')}</select>
+  <button class="btn primary small" data-act="status">Save status</button></div></div>` : ''}
+  ${i.own ? '' : `<form id="claimForm" class="box"><h4>${i.type === 'Found' ? 'Claim this item' : 'Send a message to the owner'}</h4><p class="muted">Prototype: requests are saved in this browser only.</p>
   <label>Your name<input name="cname" maxlength="60"></label>
   <label>${i.type === 'Found' ? 'Describe something only the owner would know' : 'Message (for example: I found your item, please contact me)'}<textarea name="cmsg" rows="2" maxlength="200"></textarea></label>
-  <button class="btn primary small" type="submit">Send request</button></form>
+  <button class="btn primary small" type="submit">Send request</button></form>`}
   ${i.own ? `<div class="row" style="margin-top:.9rem"><button class="btn ghost small" data-act="edit">Edit report</button><button class="btn danger small" data-act="delete">Delete report</button></div>` : '<p class="muted">Sample reports cannot be edited or deleted.</p>'}`;
   $('#modal').classList.add('open');
 }
