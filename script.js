@@ -59,12 +59,37 @@ function matchesFor(it) {
 }
 
 /* ---------- Views ---------- */
-function show(v) {
+function show(v, keepScroll) {
   document.querySelectorAll('.view').forEach(e => e.classList.toggle('active', e.id === v));
-  $('#menu').classList.remove('open'); window.scrollTo(0, 0);
+  $('#menu').classList.remove('open'); if (!keepScroll) window.scrollTo(0, 0);
   if (v === 'home') renderHome();
   if (v === 'browse') renderBrowse();
 }
+/* ---------- Router: every page and popup gets its own address (#browse, #home/item/s1 ...)
+   so the browser Back button moves between pages instead of leaving the site ---------- */
+const VIEWS = ['home', 'browse', 'lost', 'found'];
+let lastBase = null;
+/* Go to a page. replace = true swaps the current history entry instead of adding one */
+function go(path, replace) {
+  const d = /\/item\//.test(path) ? ((history.state && history.state.d) || 0) + 1 : 0;
+  history[replace ? 'replaceState' : 'pushState']({ d }, '', '#' + path);
+  route();
+}
+function route() {
+  let [v, k, id] = location.hash.slice(1).split('/');
+  if (!VIEWS.includes(v)) { v = 'home'; k = id = undefined; }
+  const base = k === 'edit' ? `${v}/edit/${id}` : v;
+  if (base !== lastBase) {
+    lastBase = base;
+    if (v === 'lost' || v === 'found') {
+      const type = v === 'lost' ? 'Lost' : 'Found';
+      const it = k === 'edit' ? items.find(x => x.id === id && x.own) : null;
+      openForm(type, it);
+    } else show(v);
+  } else if (v === 'home' || v === 'browse') show(v, true);
+  if (k === 'item' && items.some(x => x.id === id)) openDetails(id); else hideModal();
+}
+window.addEventListener('popstate', route);
 function card(i) {
   return `<article class="card"><div class="thumb">${i.image ? `<img src="${i.image}" alt="${esc(i.name)}">` : ICON[i.category] || '📦'}</div>
   <div class="body"><span class="badge ${cls(i.status)}">${i.status}</span><h3>${esc(i.name)}</h3>
@@ -142,7 +167,7 @@ async function submitForm(e) {
   if (editId) { const it = items.find(i => i.id === editId); Object.assign(it, data); if (image) it.image = image; }
   else items.push({ ...data, id: 'u' + Date.now(), type, status: type, image: image || '', own: true, claims: 0, created: Date.now() });
   if (!save()) { items = JSON.parse(backup); return toast('Browser storage is full. Try a smaller image or delete old reports.', true); }
-  toast(editId ? 'Report updated.' : 'Report submitted.'); editId = null; show('browse');
+  toast(editId ? 'Report updated.' : 'Report submitted.'); editId = null; lastBase = null; go('browse', true);
 }
 
 /* ---------- Details modal ---------- */
@@ -151,13 +176,13 @@ function openDetails(id) {
   const ms = matchesFor(i);
   $('#modalBody').innerHTML = `<div class="detail-img">${i.image ? `<img src="${i.image}" alt="">` : ICON[i.category] || '📦'}</div>
   <span class="badge ${cls(i.status)}">${i.status}</span><h2>${esc(i.name)}</h2>
-  <dl><dt>Report type</dt><dd>${i.type}</dd><dt>Category</dt><dd>${esc(i.category)}</dd><dt>Date</dt><dd>${esc(i.date)}</dd>
+  <dl><dt>Category</dt><dd>${esc(i.category)}</dd><dt>Date</dt><dd>${esc(i.date)}</dd>
   <dt>Location</dt><dd>${esc(i.location)}</dd><dt>Description</dt><dd>${esc(i.description || 'No description added')}</dd>
   <dt>Contact</dt><dd>${i.showContact ? esc(i.contact) : '🔒 Hidden by the reporter. Send a request below.'}</dd></dl>
   ${(i.claimList || []).length ? `<div class="box"><h4>Requests received</h4>${i.claimList.map(c => `<p class="muted"><b>${esc(c.name)}</b>: ${esc(c.msg)}</p>`).join('')}</div>` : ''}
-  <div class="box"><h4>Possible matches</h4><p class="muted">Suggestions only, not confirmed matches.</p>
+  <div class="box"><h4>Possible matches</h4><p class="muted">Automatic suggestions from similar reports. Nothing to save here. Open one to check it.</p>
   ${ms.length ? ms.map(m => `<div class="pair"><span>${esc(m.item.name)} (${m.item.type})<br><span class="strength">${strength(m.s)} • ${m.s}%</span></span><button class="btn ghost small" data-open="${m.item.id}">View</button></div>`).join('') : '<p class="muted">No similar reports yet.</p>'}</div>
-  <div class="box"><h4>Update status</h4><div class="row"><select id="statusSel">${['Lost', 'Found', 'Possible Match', 'Returned'].map(s => `<option ${s === i.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+  <div class="box"><h4>Mark progress</h4><p class="muted">Change this when something happens: Possible Match (you think the item was found) or Returned (the owner got it back). Then press Save status.</p><div class="row"><select id="statusSel">${['Lost', 'Found', 'Possible Match', 'Returned'].map(s => `<option ${s === i.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
   <button class="btn primary small" data-act="status">Save status</button></div></div>
   <form id="claimForm" class="box"><h4>${i.type === 'Found' ? 'Claim this item' : 'Send a message to the owner'}</h4><p class="muted">Prototype: requests are saved in this browser only.</p>
   <label>Your name<input name="cname" maxlength="60"></label>
@@ -166,7 +191,15 @@ function openDetails(id) {
   ${i.own ? `<div class="row" style="margin-top:.9rem"><button class="btn ghost small" data-act="edit">Edit report</button><button class="btn danger small" data-act="delete">Delete report</button></div>` : '<p class="muted">Sample reports cannot be edited or deleted.</p>'}`;
   $('#modal').classList.add('open');
 }
-function closeDetails() { $('#modal').classList.remove('open'); openId = null; }
+function hideModal() { $('#modal').classList.remove('open'); openId = null; }
+/* Closing the popup steps back past every popup page we opened, or just drops it from the address */
+function closeDetails() {
+  if (!openId) return;
+  const d = (history.state && history.state.d) || 0;
+  if (d > 0) history.go(-d);
+  else go(lastBase && !lastBase.includes('/edit/') ? lastBase : 'home', true);
+}
+function viewDetails(id) { go(`${lastBase && VIEWS.includes(lastBase) ? lastBase : 'home'}/item/${id}`); }
 function toast(msg, err) {
   const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
   clearTimeout(toast.id); toast.id = setTimeout(() => t.className = '', 2800);
@@ -175,13 +208,13 @@ function toast(msg, err) {
 /* ---------- Events ---------- */
 document.addEventListener('click', e => {
   const nav = e.target.closest('[data-view]');
-  if (nav) { e.preventDefault(); closeDetails(); const v = nav.dataset.view; return v === 'lost' ? openForm('Lost') : v === 'found' ? openForm('Found') : show(v); }
-  const o = e.target.closest('[data-open]'); if (o) return openDetails(o.dataset.open);
+  if (nav) { e.preventDefault(); const v = nav.dataset.view; if (v === lastBase && !openId) { $('#menu').classList.remove('open'); return window.scrollTo(0, 0); } lastBase = null; return go(v); }
+  const o = e.target.closest('[data-open]'); if (o) return viewDetails(o.dataset.open);
   const a = e.target.closest('[data-act]'); if (!a) return;
   const i = items.find(x => x.id === openId); if (!i) return;
   if (a.dataset.act === 'status') { i.status = $('#statusSel').value; save() ? toast('Status saved.') : toast('Could not save.', true); refresh(); }
-  if (a.dataset.act === 'edit') { closeDetails(); openForm(i.type, i); }
-  if (a.dataset.act === 'delete' && confirm('Delete this report? This cannot be undone.')) { items = items.filter(x => x !== i); save(); closeDetails(); toast('Report deleted.'); refresh(); }
+  if (a.dataset.act === 'edit') { lastBase = null; go(`${i.type.toLowerCase()}/edit/${i.id}`, true); }
+  if (a.dataset.act === 'delete' && confirm('Delete this report? This cannot be undone.')) { items = items.filter(x => x !== i); save(); closeDetails(); hideModal(); toast('Report deleted.'); renderHome(); renderBrowse(); }
 });
 document.addEventListener('submit', e => {
   if (e.target.id !== 'claimForm') return;
@@ -205,4 +238,5 @@ $('#fc').innerHTML = opts(CATS, 'All categories'); $('#fl').innerHTML = opts(LOC
 $('#form').elements.category.innerHTML = opts(CATS); $('#form').elements.location.innerHTML = opts(LOCS);
 items = load();
 if (!items) { items = seed(); save(); }
-renderHome();
+history.replaceState({ d: (history.state && history.state.d) || 0 }, '', location.href);
+route();
