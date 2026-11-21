@@ -80,7 +80,8 @@
         <label>Description (optional)<textarea name="description" rows="3" maxlength="300" placeholder="Colour, brand, marks, contents..."></textarea></label>
         <label><span id="dateLbl">Date</span><input name="date" type="date"></label>
         <label><span id="locLbl">Location</span><select name="location"></select></label>
-        <label>Item image (optional)<input name="image" type="file" accept="image/*"></label>
+        <label>Item photo (optional): choose from gallery or files<input name="image" type="file" accept="image/*"></label>
+        <label>Or take a photo now with your camera<input name="camera" type="file" accept="image/*" capture="environment"></label>
         <label>Your phone or email (private, never shown on the site)<input name="contact" placeholder="you@college.edu or 9876543210"></label>
         <div class="actions"><button class="btn primary" type="submit" id="submitBtn">Submit report</button><button class="btn ghost" type="button" data-view="browse">Cancel</button></div>
       </form>

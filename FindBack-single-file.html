@@ -152,7 +152,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
         <label>Description (optional)<textarea name="description" rows="3" maxlength="300" placeholder="Colour, brand, marks, contents..."></textarea></label>
         <label><span id="dateLbl">Date</span><input name="date" type="date"></label>
         <label><span id="locLbl">Location</span><select name="location"></select></label>
-        <label>Item image (optional)<input name="image" type="file" accept="image/*"></label>
+        <label>Item photo (optional): choose from gallery or files<input name="image" type="file" accept="image/*"></label>
+        <label>Or take a photo now with your camera<input name="camera" type="file" accept="image/*" capture="environment"></label>
         <label>Your phone or email (private, never shown on the site)<input name="contact" placeholder="you@college.edu or 9876543210"></label>
         <div class="actions"><button class="btn primary" type="submit" id="submitBtn">Submit report</button><button class="btn ghost" type="button" data-view="browse">Cancel</button></div>
       </form>
@@ -184,7 +185,7 @@ function saveClaims() { try { localStorage.setItem(CKEY, JSON.stringify(claims))
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const cls = s => s.toLowerCase().replace(/\s+/g, '-');
 
 /* ---------- Storage ---------- */
@@ -306,7 +307,7 @@ function openForm(type, item) {
   $('#locLbl').textContent = type === 'Lost' ? 'Location last seen' : 'Location found';
   $('#submitBtn').textContent = item ? 'Save changes' : 'Submit report';
   $('#formNote').textContent = type === 'Lost' ? 'Describe your item clearly. When it is found, claim it with proof and the admin will book your pickup slot. Your contact stays private.' : 'Please hand the item to the Admin Desk. The admin keeps it safe and returns it only after checking the owner\'s proof. Your contact stays private.';
-  f.elements.date.max = daysAgo(0);
+  f.elements.date.max = type === 'Lost' ? daysAgo(0) : '';
   if (item) ['name', 'category', 'description', 'date', 'location', 'contact'].forEach(k => f.elements[k].value = item[k]);
   show('report');
 }
@@ -331,10 +332,10 @@ async function submitForm(e) {
   const f = e.target, type = f.dataset.type, errs = [], v = n => f.elements[n].value.trim();
   if (v('name').length < 2) errs.push('Enter an item name (at least 2 characters).');
   if (!v('category')) errs.push('Choose a category.');
-  if (!v('date')) errs.push('Choose a date.'); else if (v('date') > daysAgo(0)) errs.push('The date cannot be in the future.');
+  if (!v('date')) errs.push('Choose a date.'); else if (type === 'Lost' && v('date') > daysAgo(0)) errs.push('The date lost cannot be in the future.');
   if (!v('location')) errs.push('Choose a location.');
   if (!/^([^\s@]+@[^\s@]+\.[^\s@]+|\+?[\d\s-]{8,15})$/.test(v('contact'))) errs.push('Enter a valid email or phone number.');
-  const file = f.elements.image.files[0];
+  const file = f.elements.image.files[0] || f.elements.camera.files[0];
   if (file && (!file.type.startsWith('image/') || file.size > 5e6)) errs.push('Upload an image file under 5 MB.');
   const box = $('#formErr');
   if (errs.length) { box.innerHTML = '<ul>' + errs.map(x => `<li>${x}</li>`).join('') + '</ul>'; box.hidden = false; return toast('Please fix the errors in the form.', true); }
@@ -356,7 +357,7 @@ function openDetails(id) {
   <span class="badge ${cls(i.status)}">${i.status}</span><h2>${esc(i.name)}</h2>
   <dl><dt>Category</dt><dd>${esc(i.category)}</dd><dt>Date</dt><dd>${esc(i.date)}</dd>
   <dt>Location</dt><dd>${esc(i.location)}</dd><dt>Description</dt><dd>${esc(i.description || 'No description added')}</dd>
-  <dt>Contact</dt><dd>${isAdmin ? esc(i.contact) : '🔒 Private. Only the admin can see it.'}</dd></dl>
+  ${isAdmin ? `<dt>Contact (admin only)</dt><dd>${esc(i.contact)}</dd>` : ''}</dl>
   <div class="box"><h4>Similar reports (automatic)</h4><p class="muted">Automatic suggestions from similar reports. Nothing to save here. Open one to check it.</p>
   ${ms.length ? ms.map(m => `<div class="pair"><span>${esc(m.item.name)} (${m.item.type})<br><span class="strength">${strength(m.s)} • ${m.s}%</span></span><button class="btn ghost small" data-open="${m.item.id}">View</button></div>`).join('') : '<p class="muted">No similar reports yet.</p>'}</div>
   ${actionBox(i)}
@@ -374,7 +375,8 @@ function actionBox(i) {
   <label>Your name<input name="cname" maxlength="60"></label>
   <label>Your phone or email<input name="ccontact" maxlength="60"></label>
   <label>Proof (colour, marks, contents, purchase details)<textarea name="cproof" rows="2" maxlength="300"></textarea></label>
-  <label>Proof photo (optional, for example a bill)<input name="cimage" type="file" accept="image/*"></label>
+  <label>Proof photo (optional): choose from gallery or files<input name="cimage" type="file" accept="image/*"></label>
+  <label>Or take a proof photo now with your camera<input name="ccamera" type="file" accept="image/*" capture="environment"></label>
   <button class="btn primary small" type="submit">Send claim to admin</button></form>`;
 }
 /* My Requests: claims made in this browser, with status and pickup slot */
@@ -451,7 +453,7 @@ document.addEventListener('submit', async e => {
   e.preventDefault(); const it = items.find(x => x.id === openId), E = f.elements, g = n => E[n].value.trim();
   if (g('cname').length < 2 || g('cproof').length < 10) return toast('Enter your name and a proof description (at least 10 characters).', true);
   if (!/^([^\s@]+@[^\s@]+\.[^\s@]+|\+?[\d\s-]{8,15})$/.test(g('ccontact'))) return toast('Enter a valid phone number or email.', true);
-  let image = ''; const file = E.cimage.files[0];
+  let image = ''; const file = E.cimage.files[0] || E.ccamera.files[0];
   if (file) { if (!file.type.startsWith('image/') || file.size > 5e6) return toast('Proof must be an image under 5 MB.', true); try { image = await readImage(file); } catch (x) { return toast('Could not read the proof image.', true); } }
   const old = it.status;
   claims.push({ id: 'c' + Date.now(), itemId: it.id, name: g('cname'), contact: g('ccontact'), proof: g('cproof'), image, status: 'Under review', slot: null, note: '', created: Date.now() });
@@ -460,6 +462,8 @@ document.addEventListener('submit', async e => {
   toast('Claim sent to the admin for review.'); go('requests');
 });
 $('#form').addEventListener('submit', submitForm);
+/* Only one photo source is used: choosing one clears the other */
+['image', 'camera'].forEach((n, k, a) => $('#form').elements[n].addEventListener('change', e => { if (e.target.files.length) $('#form').elements[a[1 - k]].value = ''; }));
 $('#menuBtn').addEventListener('click', () => $('#menu').classList.toggle('open'));
 $('#closeModal').addEventListener('click', closeDetails);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeDetails(); });
