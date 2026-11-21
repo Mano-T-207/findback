@@ -54,6 +54,16 @@ function score(a, b) {
   return Math.min(s, 100);
 }
 const strength = s => s >= 65 ? 'Strong' : s >= 45 ? 'Medium' : 'Weak';
+/* Short reasons shown with each match */
+function why(a, b) {
+  const r = [];
+  if (a.category === b.category) r.push('same category');
+  if (overlap(a.name, b.name) > 0) r.push('similar name');
+  if (overlap(a.description, b.description) > 0) r.push('similar description');
+  if (a.location === b.location) r.push('same location');
+  if (Math.abs(new Date(a.date) - new Date(b.date)) / 864e5 <= 3) r.push('dates close');
+  return r.length ? 'Why: ' + r.join(', ') : '';
+}
 /* Top 3 opposite-type, non-returned items scoring 30 or more */
 function matchesFor(it) {
   if (it.status === 'Returned') return [];
@@ -138,20 +148,17 @@ function openForm(type, item) {
   if (item) ['name', 'category', 'description', 'date', 'location', 'contact'].forEach(k => f.elements[k].value = item[k]);
   show('report');
 }
-/* Shrinks the photo so LocalStorage (about 5 MB) is not filled quickly */
+/* Any photo size works: it is shrunk to a small copy so browser storage is not filled */
 function readImage(file) {
   return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onerror = () => rej(); r.onload = () => {
-      const img = new Image(); img.onerror = () => rej();
-      img.onload = () => {
-        const k = Math.min(1, 400 / Math.max(img.width, img.height)), c = document.createElement('canvas');
-        c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        res(c.toDataURL('image/jpeg', 0.6));
-      };
-      img.src = r.result;
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); rej(); };
+    img.onload = () => {
+      const k = Math.min(1, 400 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.6));
     };
-    r.readAsDataURL(file);
+    img.src = url;
   });
 }
 async function submitForm(e) {
@@ -163,7 +170,7 @@ async function submitForm(e) {
   if (!v('location')) errs.push('Choose a location.');
   if (!/^([^\s@]+@[^\s@]+\.[^\s@]+|\+?[\d\s-]{8,15})$/.test(v('contact'))) errs.push('Enter a valid email or phone number.');
   const file = f.elements.image.files[0] || f.elements.camera.files[0];
-  if (file && (!file.type.startsWith('image/') || file.size > 5e6)) errs.push('Upload an image file under 5 MB.');
+  if (file && !file.type.startsWith('image/')) errs.push('Please choose an image file (photo).');
   const box = $('#formErr');
   if (errs.length) { box.innerHTML = '<ul>' + errs.map(x => `<li>${x}</li>`).join('') + '</ul>'; box.hidden = false; return toast('Please fix the errors in the form.', true); }
   box.hidden = true;
@@ -185,8 +192,8 @@ function openDetails(id) {
   <dl><dt>Category</dt><dd>${esc(i.category)}</dd><dt>Date</dt><dd>${esc(i.date)}</dd>
   <dt>Location</dt><dd>${esc(i.location)}</dd><dt>Description</dt><dd>${esc(i.description || 'No description added')}</dd>
   ${isAdmin ? `<dt>Contact (admin only)</dt><dd>${esc(i.contact)}</dd>` : ''}</dl>
-  <div class="box"><h4>Similar reports (automatic)</h4><p class="muted">Automatic suggestions from similar reports. Nothing to save here. Open one to check it.</p>
-  ${ms.length ? ms.map(m => `<div class="pair"><span>${esc(m.item.name)} (${m.item.type})<br><span class="strength">${strength(m.s)} • ${m.s}%</span></span><button class="btn ghost small" data-open="${m.item.id}">View</button></div>`).join('') : '<p class="muted">No similar reports yet.</p>'}</div>
+  <div class="box"><h4>Possible matches (${ms.length})</h4><p class="muted">${i.type === 'Lost' ? 'Found items that look like this lost item.' : 'Lost items that look like this found item.'} These are suggestions only, not confirmed.</p>
+  ${ms.length ? ms.map(m => `<div class="pair"><span><b>${esc(m.item.name)}</b> (${m.item.type}, ${esc(m.item.location)})<br><span class="strength">${strength(m.s)} match • ${m.s}%</span><br><span class="muted">${why(i, m.item)}</span></span><button class="btn ghost small" data-open="${m.item.id}">View match</button></div>`).join('') : '<p class="muted">No matches yet. Check again when more items are reported.</p>'}</div>
   ${actionBox(i)}
   ${i.own ? `<div class="row" style="margin-top:.9rem"><button class="btn ghost small" data-act="edit">Edit report</button><button class="btn danger small" data-act="delete">Delete report</button></div>` : ''}`;
   $('#modal').classList.add('open');
@@ -281,7 +288,7 @@ document.addEventListener('submit', async e => {
   if (g('cname').length < 2 || g('cproof').length < 10) return toast('Enter your name and a proof description (at least 10 characters).', true);
   if (!/^([^\s@]+@[^\s@]+\.[^\s@]+|\+?[\d\s-]{8,15})$/.test(g('ccontact'))) return toast('Enter a valid phone number or email.', true);
   let image = ''; const file = E.cimage.files[0] || E.ccamera.files[0];
-  if (file) { if (!file.type.startsWith('image/') || file.size > 5e6) return toast('Proof must be an image under 5 MB.', true); try { image = await readImage(file); } catch (x) { return toast('Could not read the proof image.', true); } }
+  if (file) { if (!file.type.startsWith('image/')) return toast('Please choose an image file (photo).', true); try { image = await readImage(file); } catch (x) { return toast('Could not read the proof image.', true); } }
   const old = it.status;
   claims.push({ id: 'c' + Date.now(), itemId: it.id, name: g('cname'), contact: g('ccontact'), proof: g('cproof'), image, status: 'Under review', slot: null, note: '', created: Date.now() });
   if (it.status === 'Found') it.status = 'Claim Pending';
