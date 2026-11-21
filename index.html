@@ -15,6 +15,8 @@
     <a href="#" data-view="browse">Browse Items</a>
     <a href="#" data-view="lost">Report Lost</a>
     <a href="#" data-view="found">Report Found</a>
+    <a href="#" data-view="requests">My Requests</a>
+    <a href="#" data-view="admin">Admin</a>
   </nav>
 </header>
 
@@ -23,7 +25,7 @@
   <section id="home" class="view active">
     <div class="hero">
       <h1>Lost Something? Let's Find It Back.</h1>
-      <p>FindBack is a campus lost-and-found prototype. Report what you lost or found, search listings, and see possible matches.</p>
+      <p>FindBack is a campus lost-and-found desk. Report what you lost or found, claim your item with proof, and collect it from the Admin Desk at a booked time.</p>
       <div class="actions">
         <button class="btn primary" data-view="lost">Report Lost Item</button>
         <button class="btn light" data-view="found">Report Found Item</button>
@@ -35,10 +37,10 @@
       <div class="grid" id="recent"></div>
       <h2>How it works</h2>
       <div class="steps">
-        <div><b>1. Report</b><p>Post a lost or found item with a photo and details.</p></div>
-        <div><b>2. Search</b><p>Filter by name, category, status, date, and location.</p></div>
-        <div><b>3. Check matches</b><p>See suggested matches ranked by strength.</p></div>
-        <div><b>4. Claim</b><p>Send a claim request. Contact details stay private.</p></div>
+        <div><b>1. Report</b><p>Lost: describe your item. Found: hand it to the Admin Desk and report it.</p></div>
+        <div><b>2. Claim with proof</b><p>Find your item under Found and send proof to the admin. Contacts stay private.</p></div>
+        <div><b>3. Admin verifies</b><p>The admin checks your proof, then approves or rejects and books a pickup slot.</p></div>
+        <div><b>4. Collect and return</b><p>Visit the Admin Desk at your slot with your ID. The admin marks it Returned.</p></div>
       </div>
     </div>
   </section>
@@ -51,7 +53,7 @@
         <input id="fq" type="search" placeholder="Search item name">
         <select id="fc"></select>
         <select id="fs">
-          <option value="">All statuses</option><option>Lost</option><option>Found</option><option>Possible Match</option><option>Returned</option>
+          <option value="">All statuses</option><option>Lost</option><option>Found</option><option>Claim Pending</option><option>Ready for Pickup</option><option>Returned</option>
         </select>
         <label class="dl">Filter by date<input id="fd" type="date"></label>
         <select id="fl"></select>
@@ -72,22 +74,25 @@
       <h2 id="formTitle">Report item</h2>
       <form id="form" novalidate>
         <div id="formErr" class="alert" hidden></div>
+        <p id="formNote" class="note"></p>
         <label>Item name<input name="name" maxlength="60" placeholder="e.g. Black wireless earbuds"></label>
         <label>Category<select name="category"></select></label>
         <label>Description (optional)<textarea name="description" rows="3" maxlength="300" placeholder="Colour, brand, marks, contents..."></textarea></label>
         <label><span id="dateLbl">Date</span><input name="date" type="date"></label>
         <label><span id="locLbl">Location</span><select name="location"></select></label>
         <label>Item image (optional)<input name="image" type="file" accept="image/*"></label>
-        <label>Contact information (email or phone)<input name="contact" placeholder="you@college.edu or 9876543210"></label>
-        <label class="check"><input type="checkbox" name="showContact"> Show my contact details on this report so people can reach me directly (otherwise they stay hidden)</label>
+        <label>Your phone or email (private, never shown on the site)<input name="contact" placeholder="you@college.edu or 9876543210"></label>
         <div class="actions"><button class="btn primary" type="submit" id="submitBtn">Submit report</button><button class="btn ghost" type="button" data-view="browse">Cancel</button></div>
       </form>
     </div>
   </section>
+<section id="requests" class="view"><div class="wrap narrow"><h2>My requests</h2>
+    <p class="note">After you claim an item, the admin checks your proof and books a pickup slot at the Admin Desk. Bring your college ID.</p><div id="reqList"></div></div></section>
+  <section id="admin" class="view"><div class="wrap narrow"><h2>Admin desk</h2><div id="adminBox"></div></div></section>
 </main>
 
 <footer>
-  <p>FindBack is an academic prototype. Data is saved only in this browser (LocalStorage) and is not shared between devices. There is no login or identity check, claim requests are simulated, and matches are rule-based, not AI-confirmed.</p>
+  <p>FindBack is an academic prototype. Data is saved only in this browser (LocalStorage) and is not shared between devices. There is no login or identity check, the admin login is a demo PIN, and matches are rule-based, not AI-confirmed.</p>
 </footer>
 
 <div id="modal" class="modal"><div class="sheet"><button class="close" id="closeModal" aria-label="Close">×</button><div id="modalBody"></div></div></div>

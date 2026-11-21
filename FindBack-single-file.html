@@ -73,6 +73,9 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
 @media(max-width:640px){#menuBtn{display:block}#menu{display:none;width:100%;flex-direction:column;padding-top:.6rem}#menu.open{display:flex}#menu a{margin:0;padding:.6rem 0}.stats{gap:.5rem}.stat b{font-size:1.5rem}dl{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
+.under-review,.claim-pending{background:#fff1cf;color:#8a5b00}.approved,.ready-for-pickup{background:#d9f3f1;color:var(--teal-d)}.rejected{background:#fde8e6;color:#b3261e}
+.box h3{margin:.8rem 0 .4rem}
+
 </style>
 </head>
 <body>
@@ -84,6 +87,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
     <a href="#" data-view="browse">Browse Items</a>
     <a href="#" data-view="lost">Report Lost</a>
     <a href="#" data-view="found">Report Found</a>
+    <a href="#" data-view="requests">My Requests</a>
+    <a href="#" data-view="admin">Admin</a>
   </nav>
 </header>
 
@@ -92,7 +97,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
   <section id="home" class="view active">
     <div class="hero">
       <h1>Lost Something? Let's Find It Back.</h1>
-      <p>FindBack is a campus lost-and-found prototype. Report what you lost or found, search listings, and see possible matches.</p>
+      <p>FindBack is a campus lost-and-found desk. Report what you lost or found, claim your item with proof, and collect it from the Admin Desk at a booked time.</p>
       <div class="actions">
         <button class="btn primary" data-view="lost">Report Lost Item</button>
         <button class="btn light" data-view="found">Report Found Item</button>
@@ -104,10 +109,10 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
       <div class="grid" id="recent"></div>
       <h2>How it works</h2>
       <div class="steps">
-        <div><b>1. Report</b><p>Post a lost or found item with a photo and details.</p></div>
-        <div><b>2. Search</b><p>Filter by name, category, status, date, and location.</p></div>
-        <div><b>3. Check matches</b><p>See suggested matches ranked by strength.</p></div>
-        <div><b>4. Claim</b><p>Send a claim request. Contact details stay private.</p></div>
+        <div><b>1. Report</b><p>Lost: describe your item. Found: hand it to the Admin Desk and report it.</p></div>
+        <div><b>2. Claim with proof</b><p>Find your item under Found and send proof to the admin. Contacts stay private.</p></div>
+        <div><b>3. Admin verifies</b><p>The admin checks your proof, then approves or rejects and books a pickup slot.</p></div>
+        <div><b>4. Collect and return</b><p>Visit the Admin Desk at your slot with your ID. The admin marks it Returned.</p></div>
       </div>
     </div>
   </section>
@@ -120,7 +125,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
         <input id="fq" type="search" placeholder="Search item name">
         <select id="fc"></select>
         <select id="fs">
-          <option value="">All statuses</option><option>Lost</option><option>Found</option><option>Possible Match</option><option>Returned</option>
+          <option value="">All statuses</option><option>Lost</option><option>Found</option><option>Claim Pending</option><option>Ready for Pickup</option><option>Returned</option>
         </select>
         <label class="dl">Filter by date<input id="fd" type="date"></label>
         <select id="fl"></select>
@@ -141,22 +146,25 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem;max-
       <h2 id="formTitle">Report item</h2>
       <form id="form" novalidate>
         <div id="formErr" class="alert" hidden></div>
+        <p id="formNote" class="note"></p>
         <label>Item name<input name="name" maxlength="60" placeholder="e.g. Black wireless earbuds"></label>
         <label>Category<select name="category"></select></label>
         <label>Description (optional)<textarea name="description" rows="3" maxlength="300" placeholder="Colour, brand, marks, contents..."></textarea></label>
         <label><span id="dateLbl">Date</span><input name="date" type="date"></label>
         <label><span id="locLbl">Location</span><select name="location"></select></label>
         <label>Item image (optional)<input name="image" type="file" accept="image/*"></label>
-        <label>Contact information (email or phone)<input name="contact" placeholder="you@college.edu or 9876543210"></label>
-        <label class="check"><input type="checkbox" name="showContact"> Show my contact details on this report so people can reach me directly (otherwise they stay hidden)</label>
+        <label>Your phone or email (private, never shown on the site)<input name="contact" placeholder="you@college.edu or 9876543210"></label>
         <div class="actions"><button class="btn primary" type="submit" id="submitBtn">Submit report</button><button class="btn ghost" type="button" data-view="browse">Cancel</button></div>
       </form>
     </div>
   </section>
+<section id="requests" class="view"><div class="wrap narrow"><h2>My requests</h2>
+    <p class="note">After you claim an item, the admin checks your proof and books a pickup slot at the Admin Desk. Bring your college ID.</p><div id="reqList"></div></div></section>
+  <section id="admin" class="view"><div class="wrap narrow"><h2>Admin desk</h2><div id="adminBox"></div></div></section>
 </main>
 
 <footer>
-  <p>FindBack is an academic prototype. Data is saved only in this browser (LocalStorage) and is not shared between devices. There is no login or identity check, claim requests are simulated, and matches are rule-based, not AI-confirmed.</p>
+  <p>FindBack is an academic prototype. Data is saved only in this browser (LocalStorage) and is not shared between devices. There is no login or identity check, the admin login is a demo PIN, and matches are rule-based, not AI-confirmed.</p>
 </footer>
 
 <div id="modal" class="modal"><div class="sheet"><button class="close" id="closeModal" aria-label="Close">×</button><div id="modalBody"></div></div></div>
@@ -168,12 +176,16 @@ const CATS = ['Electronics','Books & Notes','ID & Cards','Bags','Keys','Clothing
 const LOCS = ['Main Library','Canteen','Admin Block','CSE Block','ECE Block','Mechanical Block','Auditorium','Sports Ground','Hostel','Parking Area','Bus Stop'];
 const ICON = {'Electronics':'📱','Books & Notes':'📚','ID & Cards':'🪪','Bags':'🎒','Keys':'🔑','Clothing':'🧥','Accessories':'⌚','Other':'📦'};
 const STOP = new Set(['the','and','with','near','for','has','was','its','have','left','found','lost','small','one']);
-let items = [], editId = null, openId = null;
+let items = [], claims = [], editId = null, openId = null, isAdmin = false;
+const CKEY = 'findback_claims', ADMIN_PIN = 'admin123', SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+try { isAdmin = sessionStorage.getItem('fb_admin') === '1'; } catch (e) {}
+function loadClaims() { try { const d = JSON.parse(localStorage.getItem(CKEY)); return Array.isArray(d) ? d : []; } catch (e) { return []; } }
+function saveClaims() { try { localStorage.setItem(CKEY, JSON.stringify(claims)); return true; } catch (e) { return false; } }
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
-const cls = s => s.toLowerCase().replace(' ', '-');
+const cls = s => s.toLowerCase().replace(/\s+/g, '-');
 
 /* ---------- Storage ---------- */
 function seed() {
@@ -228,10 +240,12 @@ function show(v, keepScroll) {
   $('#menu').classList.remove('open'); if (!keepScroll) window.scrollTo(0, 0);
   if (v === 'home') renderHome();
   if (v === 'browse') renderBrowse();
+  if (v === 'requests') renderRequests();
+  if (v === 'admin') renderAdmin();
 }
 /* ---------- Router: every page and popup gets its own address (#browse, #home/item/s1 ...)
    so the browser Back button moves between pages instead of leaving the site ---------- */
-const VIEWS = ['home', 'browse', 'lost', 'found'];
+const VIEWS = ['home', 'browse', 'lost', 'found', 'requests', 'admin'];
 let lastBase = null;
 /* Go to a page. replace = true swaps the current history entry instead of adding one */
 function go(path, replace) {
@@ -291,9 +305,9 @@ function openForm(type, item) {
   $('#dateLbl').textContent = type === 'Lost' ? 'Date lost' : 'Date found';
   $('#locLbl').textContent = type === 'Lost' ? 'Location last seen' : 'Location found';
   $('#submitBtn').textContent = item ? 'Save changes' : 'Submit report';
+  $('#formNote').textContent = type === 'Lost' ? 'Describe your item clearly. When it is found, claim it with proof and the admin will book your pickup slot. Your contact stays private.' : 'Please hand the item to the Admin Desk. The admin keeps it safe and returns it only after checking the owner\'s proof. Your contact stays private.';
   f.elements.date.max = daysAgo(0);
   if (item) ['name', 'category', 'description', 'date', 'location', 'contact'].forEach(k => f.elements[k].value = item[k]);
-  if (item) f.elements.showContact.checked = !!item.showContact;
   show('report');
 }
 /* Shrinks the photo so LocalStorage (about 5 MB) is not filled quickly */
@@ -326,7 +340,7 @@ async function submitForm(e) {
   if (errs.length) { box.innerHTML = '<ul>' + errs.map(x => `<li>${x}</li>`).join('') + '</ul>'; box.hidden = false; return toast('Please fix the errors in the form.', true); }
   box.hidden = true;
   let image; try { image = file ? await readImage(file) : null; } catch (x) { return toast('Could not read that image. Try another file.', true); }
-  const data = { name: v('name'), category: v('category'), description: v('description'), date: v('date'), location: v('location'), contact: v('contact'), showContact: f.elements.showContact.checked };
+  const data = { name: v('name'), category: v('category'), description: v('description'), date: v('date'), location: v('location'), contact: v('contact') };
   const backup = JSON.stringify(items);
   if (editId) { const it = items.find(i => i.id === editId); Object.assign(it, data); if (image) it.image = image; }
   else items.push({ ...data, id: 'u' + Date.now(), type, status: type, image: image || '', own: true, claims: 0, created: Date.now() });
@@ -342,18 +356,66 @@ function openDetails(id) {
   <span class="badge ${cls(i.status)}">${i.status}</span><h2>${esc(i.name)}</h2>
   <dl><dt>Category</dt><dd>${esc(i.category)}</dd><dt>Date</dt><dd>${esc(i.date)}</dd>
   <dt>Location</dt><dd>${esc(i.location)}</dd><dt>Description</dt><dd>${esc(i.description || 'No description added')}</dd>
-  <dt>Contact</dt><dd>${i.showContact ? esc(i.contact) : '🔒 Hidden by the reporter. Send a request below.'}</dd></dl>
-  ${(i.claimList || []).length ? `<div class="box"><h4>Requests received</h4>${i.claimList.map(c => `<p class="muted"><b>${esc(c.name)}</b>: ${esc(c.msg)}</p>`).join('')}</div>` : ''}
+  <dt>Contact</dt><dd>${isAdmin ? esc(i.contact) : '🔒 Private. Only the admin can see it.'}</dd></dl>
   <div class="box"><h4>Similar reports (automatic)</h4><p class="muted">Automatic suggestions from similar reports. Nothing to save here. Open one to check it.</p>
   ${ms.length ? ms.map(m => `<div class="pair"><span>${esc(m.item.name)} (${m.item.type})<br><span class="strength">${strength(m.s)} • ${m.s}%</span></span><button class="btn ghost small" data-open="${m.item.id}">View</button></div>`).join('') : '<p class="muted">No similar reports yet.</p>'}</div>
-  ${i.own ? `<div class="box"><h4>Mark progress (only you can see this)</h4><p class="muted">Pick Possible match if you think it was found, or Returned when the item is back with its owner. Then press Save status.</p><div class="row"><select id="statusSel">${[[i.type, i.type === 'Lost' ? 'Still missing' : 'Not claimed yet'], ['Possible Match', 'Possible match'], ['Returned', 'Returned to owner']].map(([v, l]) => `<option value="${v}" ${v === i.status ? 'selected' : ''}>${l}</option>`).join('')}</select>
-  <button class="btn primary small" data-act="status">Save status</button></div></div>` : ''}
-  ${i.own ? '' : `<form id="claimForm" class="box"><h4>${i.type === 'Found' ? 'Claim this item' : 'Send a message to the owner'}</h4><p class="muted">Prototype: requests are saved in this browser only.</p>
-  <label>Your name<input name="cname" maxlength="60"></label>
-  <label>${i.type === 'Found' ? 'Describe something only the owner would know' : 'Message (for example: I found your item, please contact me)'}<textarea name="cmsg" rows="2" maxlength="200"></textarea></label>
-  <button class="btn primary small" type="submit">Send request</button></form>`}
-  ${i.own ? `<div class="row" style="margin-top:.9rem"><button class="btn ghost small" data-act="edit">Edit report</button><button class="btn danger small" data-act="delete">Delete report</button></div>` : '<p class="muted">Sample reports cannot be edited or deleted.</p>'}`;
+  ${actionBox(i)}
+  ${i.own ? `<div class="row" style="margin-top:.9rem"><button class="btn ghost small" data-act="edit">Edit report</button><button class="btn danger small" data-act="delete">Delete report</button></div>` : ''}`;
   $('#modal').classList.add('open');
+}
+/* What the person can do in the details window depends on the item and who is looking */
+function actionBox(i) {
+  if (i.status === 'Returned') return '<div class="box"><b>✅ This item has been returned to its owner.</b></div>';
+  if (i.type === 'Lost') return i.own ? '<div class="box"><h4>Waiting for a match</h4><p class="muted">When your item appears under Found, open it and claim it with proof.</p></div>'
+    : '<div class="box"><h4>Found this item?</h4><p class="muted">Hand it to the Admin Desk and report it as Found. The admin checks the owner\'s proof and returns it safely.</p><button class="btn primary small" data-view="found">Report as found</button></div>';
+  if (i.own) return '<div class="box"><h4>You found this item</h4><p class="muted">Keep it at the Admin Desk. The admin verifies the owner and updates the status. Your contact stays private.</p></div>';
+  if (i.status === 'Ready for Pickup') return '<div class="box"><b>A pickup slot is already booked for this item.</b></div>';
+  return `<form id="claimForm" class="box"><h4>This is mine: claim it with proof</h4><p class="muted">The admin reviews your proof and books a pickup slot at the Admin Desk. Your contact goes only to the admin.</p>
+  <label>Your name<input name="cname" maxlength="60"></label>
+  <label>Your phone or email<input name="ccontact" maxlength="60"></label>
+  <label>Proof (colour, marks, contents, purchase details)<textarea name="cproof" rows="2" maxlength="300"></textarea></label>
+  <label>Proof photo (optional, for example a bill)<input name="cimage" type="file" accept="image/*"></label>
+  <button class="btn primary small" type="submit">Send claim to admin</button></form>`;
+}
+/* My Requests: claims made in this browser, with status and pickup slot */
+function renderRequests() {
+  const L = [...claims].sort((a, b) => b.created - a.created);
+  $('#reqList').innerHTML = L.length ? L.map(x => { const it = items.find(i => i.id === x.itemId) || { name: '(deleted item)' };
+    return `<div class="pair"><span><b>${esc(it.name)}</b><br><span class="muted">Proof: ${esc(x.proof.slice(0, 80))}</span>${x.slot ? `<br><b>Pickup: ${esc(x.slot.date)} at ${esc(x.slot.time)}, Admin Desk.</b> Bring your college ID.` : ''}${x.note ? `<br><span class="muted">Admin note: ${esc(x.note)}</span>` : ''}</span><span class="badge ${cls(x.status)}">${x.status}</span></div>`; }).join('')
+    : '<div class="empty">No claims yet. Open a Found item and press "This is mine".</div>';
+}
+/* Admin desk: review proof, approve with a pickup slot, reject, or mark returned */
+function renderAdmin() {
+  const box = $('#adminBox');
+  if (!isAdmin) { box.innerHTML = `<form id="adminLogin" class="box"><h4>Admin login</h4><p class="muted">Prototype demo PIN: ${ADMIN_PIN}. The full version will use a real admin account.</p><label>PIN<input name="pin" type="password"></label><button class="btn primary small" type="submit">Login</button></form>`; return; }
+  const sec = (t, st) => { const L = claims.filter(c => st.includes(c.status)).sort((a, b) => b.created - a.created); return `<h3>${t} (${L.length})</h3>` + (L.length ? L.map(adminCard).join('') : '<p class="muted">Nothing here.</p>'); };
+  box.innerHTML = '<div class="row"><button class="btn ghost small" data-act="adm-out">Logout</button></div>' + sec('Claims to review', ['Under review']) + sec('Pickups scheduled', ['Approved']) + sec('Completed', ['Returned', 'Rejected']);
+}
+function adminCard(c) {
+  const it = items.find(i => i.id === c.itemId); if (!it) return '';
+  return `<div class="box"><span class="badge ${cls(c.status)}">${c.status}</span> <b>${esc(it.name)}</b> (${it.type}, ${esc(it.location)}, ${esc(it.date)})
+  <p class="muted">Reporter contact: ${esc(it.contact)}<br>Claimant: ${esc(c.name)} (${esc(c.contact)})<br>Proof: ${esc(c.proof)}</p>${c.image ? `<img src="${c.image}" alt="Proof" style="max-width:160px;border-radius:8px">` : ''}
+  ${c.status === 'Under review' ? `<div class="row"><input type="date" id="sd-${c.id}" min="${daysAgo(0)}" style="width:auto"><select id="st-${c.id}">${SLOTS.map(t => `<option>${t}</option>`).join('')}</select></div>
+  <div class="row" style="margin-top:.5rem"><button class="btn primary small" data-act="adm-approve" data-cid="${c.id}">Approve and book slot</button><button class="btn danger small" data-act="adm-reject" data-cid="${c.id}">Reject</button></div>` : ''}
+  ${c.status === 'Approved' ? `<p class="muted"><b>Slot: ${esc(c.slot.date)} at ${esc(c.slot.time)}</b></p><button class="btn primary small" data-act="adm-return" data-cid="${c.id}">Verified in person: mark Returned</button>` : ''}
+  ${c.note ? `<p class="muted">Note: ${esc(c.note)}</p>` : ''}</div>`;
+}
+function adminAction(act, cid) {
+  const c = claims.find(x => x.id === cid), it = c && items.find(i => i.id === c.itemId); if (!c || !it) return;
+  if (act === 'adm-approve') {
+    const date = $('#sd-' + cid).value, time = $('#st-' + cid).value;
+    if (!date || date < daysAgo(0)) return toast('Choose a pickup date (today or later).', true);
+    if (claims.some(x => x.status === 'Approved' && x.slot.date === date && x.slot.time === time)) return toast('That slot is already booked. Choose another.', true);
+    c.status = 'Approved'; c.slot = { date, time }; it.status = 'Ready for Pickup';
+    claims.filter(x => x !== c && x.itemId === it.id && x.status === 'Under review').forEach(x => { x.status = 'Rejected'; x.note = 'Another claim was approved for this item.'; });
+  }
+  if (act === 'adm-reject') {
+    const why = prompt('Reason for rejecting (the claimant will see it):'); if (why === null) return;
+    c.status = 'Rejected'; c.note = why || 'Proof was not sufficient.';
+    if (!claims.some(x => x.itemId === it.id && ['Under review', 'Approved'].includes(x.status))) it.status = it.type;
+  }
+  if (act === 'adm-return') { c.status = 'Returned'; it.status = 'Returned'; }
+  save(); saveClaims(); toast('Updated.'); renderAdmin(); renderHome(); renderBrowse();
 }
 function hideModal() { $('#modal').classList.remove('open'); openId = null; }
 /* Closing the popup steps back past every popup page we opened, or just drops it from the address */
@@ -375,17 +437,27 @@ document.addEventListener('click', e => {
   if (nav) { e.preventDefault(); const v = nav.dataset.view; if (v === lastBase && !openId) { $('#menu').classList.remove('open'); return window.scrollTo(0, 0); } lastBase = null; return go(v); }
   const o = e.target.closest('[data-open]'); if (o) return viewDetails(o.dataset.open);
   const a = e.target.closest('[data-act]'); if (!a) return;
+  if (a.dataset.act === 'adm-out') { isAdmin = false; try { sessionStorage.removeItem('fb_admin'); } catch (x) {} return renderAdmin(); }
+  if (a.dataset.act.startsWith('adm-')) return adminAction(a.dataset.act, a.dataset.cid);
   const i = items.find(x => x.id === openId); if (!i) return;
   if (a.dataset.act === 'status') { i.status = $('#statusSel').value; save() ? toast('Status saved.') : toast('Could not save.', true); refresh(); }
   if (a.dataset.act === 'edit') { lastBase = null; go(`${i.type.toLowerCase()}/edit/${i.id}`, true); }
   if (a.dataset.act === 'delete' && confirm('Delete this report? This cannot be undone.')) { items = items.filter(x => x !== i); save(); closeDetails(); hideModal(); toast('Report deleted.'); renderHome(); renderBrowse(); }
 });
-document.addEventListener('submit', e => {
-  if (e.target.id !== 'claimForm') return;
-  e.preventDefault(); const f = e.target, i = items.find(x => x.id === openId);
-  if (f.elements.cname.value.trim().length < 2 || f.elements.cmsg.value.trim().length < 5) return toast('Enter your name and a short message.', true);
-  (i.claimList = i.claimList || []).push({ name: f.elements.cname.value.trim(), msg: f.elements.cmsg.value.trim() }); save();
-  toast('Request saved. It now shows under Requests received on this report.'); openDetails(openId);
+document.addEventListener('submit', async e => {
+  const f = e.target;
+  if (f.id === 'adminLogin') { e.preventDefault(); if (f.elements.pin.value === ADMIN_PIN) { isAdmin = true; try { sessionStorage.setItem('fb_admin', '1'); } catch (x) {} toast('Admin mode on.'); renderAdmin(); } else toast('Wrong PIN.', true); return; }
+  if (f.id !== 'claimForm') return;
+  e.preventDefault(); const it = items.find(x => x.id === openId), E = f.elements, g = n => E[n].value.trim();
+  if (g('cname').length < 2 || g('cproof').length < 10) return toast('Enter your name and a proof description (at least 10 characters).', true);
+  if (!/^([^\s@]+@[^\s@]+\.[^\s@]+|\+?[\d\s-]{8,15})$/.test(g('ccontact'))) return toast('Enter a valid phone number or email.', true);
+  let image = ''; const file = E.cimage.files[0];
+  if (file) { if (!file.type.startsWith('image/') || file.size > 5e6) return toast('Proof must be an image under 5 MB.', true); try { image = await readImage(file); } catch (x) { return toast('Could not read the proof image.', true); } }
+  const old = it.status;
+  claims.push({ id: 'c' + Date.now(), itemId: it.id, name: g('cname'), contact: g('ccontact'), proof: g('cproof'), image, status: 'Under review', slot: null, note: '', created: Date.now() });
+  if (it.status === 'Found') it.status = 'Claim Pending';
+  if (!saveClaims() || !save()) { claims.pop(); it.status = old; return toast('Browser storage is full. Try a smaller proof image.', true); }
+  toast('Claim sent to the admin for review.'); go('requests');
 });
 $('#form').addEventListener('submit', submitForm);
 $('#menuBtn').addEventListener('click', () => $('#menu').classList.toggle('open'));
@@ -402,6 +474,7 @@ $('#fc').innerHTML = opts(CATS, 'All categories'); $('#fl').innerHTML = opts(LOC
 $('#form').elements.category.innerHTML = opts(CATS); $('#form').elements.location.innerHTML = opts(LOCS);
 items = load();
 if (!items) { items = seed(); save(); }
+claims = loadClaims();
 history.replaceState({ d: (history.state && history.state.d) || 0 }, '', location.href);
 route();
 
