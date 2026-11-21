@@ -2,24 +2,34 @@
 
 > **Lost Something? Let’s Find It Back.**
 
-FindBack is a browser-based web app where college students report lost or found items, search listings, and see suggested matches. It is an academic prototype built for the Innovation Project (TRL 1–3).
+FindBack is a browser-based campus lost-and-found desk. An **admin sits between the person who lost an item and the person who found it**. The admin checks proof, books a pickup slot and returns the item in person. It is an academic prototype built for the Innovation Project (TRL 1–3).
 
 **Live demo:** [Open FindBack](https://mano-t-207.github.io/findback/)
 
-**Author:** Mano T | CSE | KPR Institute of Engineering and Technology | 2026-30
-
 **Report:** [TRL 1-3 Report](FindBack-TRL-Report.pdf)
+
+**Author:** Mano T | CSE | KPR Institute of Engineering and Technology
+
 ## Problem
 Lost items are reported through WhatsApp groups and notice boards. These are scattered and hard to search, and there is no safe way to check that a claimant is the real owner.
 
+## How it works
+1. **Loser** reports the item as Lost.
+2. **Finder** hands the item to the Admin Desk and reports it as Found.
+3. **Loser** finds the item under Found and claims it with proof (description and optional photo).
+4. **Admin** reviews the proof, then approves and books a pickup slot, or rejects with a reason.
+5. **Loser** checks **My Requests** for the status and slot, then visits the Admin Desk with a college ID.
+6. **Admin** checks the person in front of them and marks the item **Returned**.
+
+Item status: Lost / Found → Claim Pending → Ready for Pickup → Returned.
+
 ## Features
-- Report lost or found items with photo, category, date and location
-- Browse items as cards with Lost / Found / Possible Match / Returned status
+- Report lost or found items with a photo (gallery or camera), category, date and location
 - Search and filter by name, category, status, date and location
-- **Rule-based match suggestions** with a strength label (Strong, Medium, Weak)
-- **Privacy-first claims:** contact details stay hidden and a simulated claim request is used
-- Edit and delete your own reports; statistics update automatically
-- Responsive layout for mobile, tablet and desktop
+- **Possible matches** inside each item's details, with strength, percentage and reasons
+- **Claim with proof**, **My Requests** page, and an **Admin Desk** with slot booking (no double booking)
+- **Private contacts:** phone and email are visible only to the admin
+- Edit and delete your own reports; responsive layout for mobile, tablet and desktop
 
 ## Match scoring
 | Rule | Points |
@@ -31,6 +41,9 @@ Lost items are reported through WhatsApp groups and notice boards. These are sca
 | Dates within 3 days | 10 |
 
 Strong = 65+, Medium = 45–64, Weak = 30–44. These are suggestions, not confirmed matches.
+
+## Try the admin
+Open the **Admin** page and log in with the demo PIN `admin123`.
 
 ## Tech stack
 HTML5 • CSS3 • Vanilla JavaScript • Browser LocalStorage (no backend, no paid API)
@@ -45,30 +58,32 @@ HTML5 • CSS3 • Vanilla JavaScript • Browser LocalStorage (no backend, no p
 ```
 index.html   – page structure
 style.css    – styling
-script.js    – logic (storage, validation, search, matching)
+script.js    – logic (storage, validation, search, matching, claims, admin)
 ```
 
 ## Screenshots
 ![Home](home.png)
 ![Browse](browse.png)
 ![Details](details.png)
-![Report](report.png) 
+![Report](report.png)
+![Admin](admin.png)
+![My Requests](requests.png)
 
 ## TRL status
 | Level | Status |
 |---|---|
 | TRL-1 | Concept and problem documented (this README + report) |
 | TRL-2 | Partial prototype (report form, browse, LocalStorage) |
-| TRL-3 | Working prototype with search, matching, status tracking and report |
+| TRL-3 | Working prototype with search, matching, admin verification, slot booking and report |
 
 ## Limitations
-- Data is stored only in each browser and is not shared between devices
-- No login or identity verification
-- Claim requests are simulated
-- Matches are rule-based, not AI-confirmed
+- Reports and claims are stored only in each browser and are not shared between devices
+- The admin login is a demo PIN in the code, so it is not secure
+- Contacts are hidden on screen but stored in browser storage
+- No real student login; matches are rule-based, not AI-confirmed
 
-## Roadmap
-- Firebase/Supabase for shared data and login (TRL-4)
-- Real email/push notifications
-- Image and text similarity for better matching
-- Demo video and college event pilot (TRL-4 / TRL-5)
+## Roadmap (TRL-4)
+- Firebase shared database, real login and a real admin role with security rules
+- Admin alerts for new reports, claims and strong matches
+- Slot release and student slot choice; image and text similarity for matching
+- Demo video and college event pilot
