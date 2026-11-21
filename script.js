@@ -7,6 +7,9 @@ const STOP = new Set(['the','and','with','near','for','has','was','its','have','
 let items = [], claims = [], editId = null, openId = null, isAdmin = false;
 const CKEY = 'findback_claims', ADMIN_PIN = 'admin123', SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
 try { isAdmin = sessionStorage.getItem('fb_admin') === '1'; } catch (e) {}
+/* Time the admin last pressed "Mark all as seen". Reports and matches newer than this count as new alerts. */
+const SKEY = 'findback_seen'; let lastSeen = 0;
+try { lastSeen = +localStorage.getItem(SKEY) || 0; if (!lastSeen) { lastSeen = Date.now(); localStorage.setItem(SKEY, lastSeen); } } catch (e) { lastSeen = Date.now(); }
 function loadClaims() { try { const d = JSON.parse(localStorage.getItem(CKEY)); return Array.isArray(d) ? d : []; } catch (e) { return []; } }
 function saveClaims() { try { localStorage.setItem(CKEY, JSON.stringify(claims)); return true; } catch (e) { return false; } }
 
@@ -80,6 +83,7 @@ function show(v, keepScroll) {
   if (v === 'browse') renderBrowse();
   if (v === 'requests') renderRequests();
   if (v === 'admin') renderAdmin();
+  updateBadge();
 }
 /* ---------- Router: every page and popup gets its own address (#browse, #home/item/s1 ...)
    so the browser Back button moves between pages instead of leaving the site ---------- */
@@ -221,11 +225,28 @@ function renderRequests() {
     : '<div class="empty">No claims yet. Open a Found item and press "This is mine".</div>';
 }
 /* Admin desk: review proof, approve with a pickup slot, reject, or mark returned */
+/* Alerts for the admin: claims waiting, new reports, and strong matches (new ones are marked) */
+function alerts() {
+  const newItems = items.filter(i => i.created > lastSeen);
+  const pairs = items.filter(i => i.type === 'Lost' && i.status !== 'Returned').map(i => ({ i, m: matchesFor(i)[0] })).filter(p => p.m && p.m.s >= 45)
+    .map(p => ({ ...p, isNew: p.i.created > lastSeen || p.m.item.created > lastSeen }));
+  const pending = claims.filter(c => c.status === 'Under review');
+  return { newItems, pairs, pending, count: pending.length + newItems.length + pairs.filter(p => p.isNew).length };
+}
+/* Shows the number of new alerts next to Admin in the menu (admin only) */
+function updateBadge() { const el = $('#adminLink'); if (el) { const n = isAdmin ? alerts().count : 0; el.textContent = n ? `Admin (${n})` : 'Admin'; } }
+function alertBox() {
+  const a = alerts();
+  return `<div class="box"><h4>Alerts (${a.count} new)</h4><p class="muted">${a.pending.length} claim(s) waiting for your review.</p>
+  ${a.newItems.length ? '<p class="muted"><b>New reports:</b></p>' + a.newItems.map(i => `<p class="muted">• ${i.type}: ${esc(i.name)} (${esc(i.location)})</p>`).join('') : '<p class="muted">No new reports since you last checked.</p>'}
+  ${a.pairs.length ? '<p class="muted"><b>Possible matches:</b></p>' + a.pairs.map(p => `<p class="muted">• ${p.isNew ? '<b>NEW</b> ' : ''}${esc(p.i.name)} ↔ ${esc(p.m.item.name)}: ${strength(p.m.s)} ${p.m.s}%</p>`).join('') : ''}
+  <button class="btn ghost small" data-act="adm-seen">Mark all as seen</button></div>`;
+}
 function renderAdmin() {
-  const box = $('#adminBox');
+  updateBadge(); const box = $('#adminBox');
   if (!isAdmin) { box.innerHTML = `<form id="adminLogin" class="box"><h4>Admin login</h4><p class="muted">Prototype demo PIN: ${ADMIN_PIN}. The full version will use a real admin account.</p><label>PIN<input name="pin" type="password"></label><button class="btn primary small" type="submit">Login</button></form>`; return; }
   const sec = (t, st) => { const L = claims.filter(c => st.includes(c.status)).sort((a, b) => b.created - a.created); return `<h3>${t} (${L.length})</h3>` + (L.length ? L.map(adminCard).join('') : '<p class="muted">Nothing here.</p>'); };
-  box.innerHTML = '<div class="row"><button class="btn ghost small" data-act="adm-out">Logout</button></div>' + sec('Claims to review', ['Under review']) + sec('Pickups scheduled', ['Approved']) + sec('Completed', ['Returned', 'Rejected']);
+  box.innerHTML = '<div class="row"><button class="btn ghost small" data-act="adm-out">Logout</button></div>' + alertBox() + sec('Claims to review', ['Under review']) + sec('Pickups scheduled', ['Approved']) + sec('Completed', ['Returned', 'Rejected']);
 }
 function adminCard(c) {
   const it = items.find(i => i.id === c.itemId); if (!it) return '';
@@ -274,6 +295,7 @@ document.addEventListener('click', e => {
   const o = e.target.closest('[data-open]'); if (o) return viewDetails(o.dataset.open);
   const a = e.target.closest('[data-act]'); if (!a) return;
   if (a.dataset.act === 'adm-out') { isAdmin = false; try { sessionStorage.removeItem('fb_admin'); } catch (x) {} return renderAdmin(); }
+  if (a.dataset.act === 'adm-seen') { lastSeen = Date.now(); try { localStorage.setItem(SKEY, lastSeen); } catch (x) {} toast('Marked as seen.'); return renderAdmin(); }
   if (a.dataset.act.startsWith('adm-')) return adminAction(a.dataset.act, a.dataset.cid);
   const i = items.find(x => x.id === openId); if (!i) return;
   if (a.dataset.act === 'status') { i.status = $('#statusSel').value; save() ? toast('Status saved.') : toast('Could not save.', true); refresh(); }
